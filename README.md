@@ -3,17 +3,19 @@
 ![Platform](https://img.shields.io/badge/Platform-STM32-blue)
 ![MCU](https://img.shields.io/badge/MCU-STM32F103C8T6-green)
 ![RFID](https://img.shields.io/badge/RFID-MFRC522-orange)
-![Language](https://img.shields.io/badge/Language-C-purple)
-![Version](https://img.shields.io/badge/Version-v1.4-red)
+![Language](https://img.shields.io/badge/Language-C%20%2B%20Python-purple)
+![Version](https://img.shields.io/badge/Version-v2.0-red)
 ![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
 
 ## 📌 1. Project Overview
 
 This project is an **RFID-based access control system** built with an **STM32F103C8T6 Blue Pill** and an **MFRC522 RFID module**.
 
-The system reads RFID card UIDs through SPI communication, checks whether the card UID exists in the whitelist, and provides access feedback using an LED, buzzer, and USART serial logs.
+The STM32 reads RFID card UIDs through SPI communication, checks whether the card UID exists in the whitelist, and provides access feedback using an LED, buzzer, and USART serial logs.
 
-The project also supports:
+In version **v2.0**, the system was further upgraded with a **Python-based serial logger**. The STM32 outputs structured access logs through USART, and the Python program reads these logs from the computer serial port and stores them into a local **SQLite database**.
+
+The project supports:
 
 - Multi-card whitelist authentication
 - User identity display
@@ -22,8 +24,12 @@ The project also supports:
 - Temporary system lockout
 - Modular firmware structure
 - State-machine-based main workflow
+- Structured serial log output
+- Python serial data receiver
+- SQLite access log storage
+- Local database log viewer
 
-This project demonstrates a complete embedded access control workflow from RFID card detection to authentication, feedback, alarm handling, and system state management.
+This project demonstrates a complete embedded access control workflow from RFID card detection to authentication, feedback, alarm handling, serial communication, database storage, and local data viewing.
 
 ---
 
@@ -41,6 +47,10 @@ This project demonstrates a complete embedded access control workflow from RFID 
 - ✅ Temporary system lockout for 5 seconds
 - ✅ Modular firmware structure
 - ✅ State-machine-based main workflow
+- ✅ Structured serial log output for computer-side processing
+- ✅ Python serial logger for receiving STM32 access logs
+- ✅ SQLite database storage for access records
+- ✅ Local access log viewer using Python
 
 ---
 
@@ -53,7 +63,7 @@ This project demonstrates a complete embedded access control workflow from RFID 
 | RFID Card / Tag | RFID access card |
 | LED / LED Module | Access result indicator |
 | Active-low Buzzer Module | Audio feedback module |
-| USB-TTL Module | Serial debugging |
+| USB-TTL Module | Serial debugging and Python serial logging |
 | ST-Link V2 | Program download and debugging |
 | Jumper Wires | Circuit connection |
 | Breadboard | Optional prototyping board |
@@ -110,14 +120,16 @@ System behavior:
 
 ---
 
-### 4.4 USART Serial Debugging
+### 4.4 USART Serial Debugging and Python Logging
 
 | USB-TTL Pin | STM32F103C8T6 Pin | Description |
 |---|---|---|
 | RXD | PA9 / USART1_TX | Receive serial logs from STM32 |
 | GND | GND | Common ground |
 
-> The current project mainly uses STM32 TX for serial log output. If serial command input is needed in the future, USB-TTL TXD can be connected to STM32 PA10 / USART1_RX.
+The project mainly uses STM32 USART1 TX to send logs to the computer. In v2.0, the same USART output is also used by the Python logger to receive structured access records.
+
+> If serial command input is needed in the future, USB-TTL TXD can be connected to STM32 PA10 / USART1_RX.
 
 ---
 
@@ -161,6 +173,8 @@ System behavior:
 | Stop Bits | 1 |
 | Flow Control | None |
 
+> In v2.0, the serial assistant should be closed when running the Python logger, because the same COM port cannot be used by two programs at the same time.
+
 ---
 
 ## 🧾 6. Version History
@@ -172,44 +186,55 @@ System behavior:
 | v1.2 | Added failed-attempt counting, alarm, and temporary lockout |
 | v1.3 | Refactored the code into multiple modules |
 | v1.4 | Added a state-machine-based main workflow |
+| v1.5 | Added GitHub README, wiring photos, serial output screenshots, and project documentation |
+| v2.0 | Added structured serial logging, Python serial receiver, SQLite database storage, and local access log viewer |
 
 ---
 
 ## 🗂️ 7. Software Architecture
 
-The firmware is organized into multiple modules:
+The firmware and Python scripts are organized as follows:
 
 ```text
-main.c      Main program and state machine
-rc522.c     RC522 driver and SPI communication
+main.c              Main program, state machine, and structured serial log output
+rc522.c             RC522 driver and SPI communication
 rc522.h
-access.c    Whitelist management and access checking
+access.c            Whitelist management and access checking
 access.h
-usart.c     USART1 serial logging
+usart.c             USART1 serial logging
 usart.h
-led.c       LED control
+led.c               LED control
 led.h
-buzzer.c    Buzzer control
+buzzer.c            Buzzer control
 buzzer.h
-delay.c     Software delay
+delay.c             Software delay
 delay.h
+
+serial_logger.py    Python script for reading STM32 serial logs and saving them into SQLite
+view_logs.py        Python script for viewing saved access logs from SQLite
+access_log.db       SQLite database generated automatically after running serial_logger.py
 ```
 
 | File | Function |
 |---|---|
-| main.c | System initialization and state machine loop |
+| main.c | System initialization, state machine loop, and structured LOG output |
 | rc522.c / rc522.h | RC522 initialization, register operations, card request, anti-collision, and UID reading |
 | access.c / access.h | Whitelist management, UID matching, user name retrieval, repeated-card filtering |
 | usart.c / usart.h | USART1 initialization and serial log output |
 | led.c / led.h | LED initialization and control |
 | buzzer.c / buzzer.h | Buzzer initialization and feedback patterns |
 | delay.c / delay.h | Simple software delay |
+| serial_logger.py | Reads STM32 LOG messages from COM5 and stores them into SQLite |
+| view_logs.py | Reads and prints saved access records from SQLite |
+| access_log.db | Local SQLite database generated during runtime |
+
+> `access_log.db` is a generated runtime file. It does not need to be manually created.
 
 ---
 
 ## 🔁 8. State Machine Design
 
-In version **v1.4**, the main workflow is implemented using a state machine.
+Starting from version **v1.4**, the main workflow is implemented using a state machine. This structure is kept in version **v2.0**.
 
 | State | Description |
 |---|---|
@@ -278,7 +303,7 @@ CardInfo whiteList[] =
 ================================
  RFID Access Control System
  System Start
- Version: v1.4 State Machine
+ Version: v2.0 Serial Logging
 ================================
 ```
 
@@ -292,6 +317,8 @@ UID: 2E EF 30 07
 [ACCESS] GRANTED
 [USER] Admin Card
 [FAIL COUNT] 0
+
+LOG,2E EF 30 07,Admin Card,GRANTED,0
 ```
 
 System behavior:
@@ -299,6 +326,7 @@ System behavior:
 - LED turns on
 - Buzzer beeps once
 - Failed count resets to 0
+- A structured LOG line is sent to the computer
 
 ---
 
@@ -310,6 +338,8 @@ UID: AD 8D 17 07
 [ACCESS] DENIED
 [USER] Unknown Card
 [FAIL COUNT] 1
+
+LOG,AD 8D 17 07,Unknown Card,DENIED,1
 ```
 
 System behavior:
@@ -317,6 +347,7 @@ System behavior:
 - LED remains off
 - Buzzer beeps three times
 - Failed count increases by 1
+- A structured LOG line is sent to the computer
 
 ---
 
@@ -329,8 +360,12 @@ UID: AD 8D 17 07
 [USER] Unknown Card
 [FAIL COUNT] 3
 
+LOG,AD 8D 17 07,Unknown Card,DENIED,3
+
 [ALARM] Too many failed attempts!
 [SYSTEM] Locked for 5 seconds
+
+LOG,AD 8D 17 07,Unknown Card,ALARM,3
 
 [SYSTEM] Unlock now
 [FAIL COUNT] 0
@@ -338,13 +373,97 @@ UID: AD 8D 17 07
 
 System behavior:
 
+- The third unauthorized scan is recorded as `DENIED`
 - Alarm is triggered
+- The alarm event is recorded as `ALARM`
 - System locks for 5 seconds
 - Failed count resets after unlock
 
 ---
 
-## 🖼️ 11. Demo Images
+## 🗃️ 11. Python Serial Logger and SQLite Database
+
+In version **v2.0**, the STM32 outputs structured serial logs in the following format:
+
+```text
+LOG,UID,USER,RESULT,FAIL_COUNT
+```
+
+Examples:
+
+```text
+LOG,2E EF 30 07,Admin Card,GRANTED,0
+LOG,AD 8D 17 07,Unknown Card,DENIED,1
+LOG,AD 8D 17 07,Unknown Card,ALARM,3
+```
+
+The Python script `serial_logger.py` reads these structured logs from `COM5` and saves them into a SQLite database named `access_log.db`.
+
+### 11.1 Database Table
+
+The SQLite database contains one table named `access_logs`.
+
+| Field | Description |
+|---|---|
+| id | Auto-increment record ID |
+| timestamp | Access time recorded by the computer |
+| uid | RFID card UID |
+| user_name | User name from whitelist or Unknown Card |
+| result | GRANTED / DENIED / ALARM |
+| fail_count | Current failed-attempt count |
+
+### 11.2 Run the Serial Logger
+
+Before running the Python logger, close the serial monitor because the same COM port cannot be opened by two programs at the same time.
+
+Run:
+
+```bash
+python serial_logger.py
+```
+
+Expected output:
+
+```text
+================================
+ STM32 RFID Serial Logger
+ Listening on: COM5
+ Baud rate: 115200
+ Database: access_log.db
+================================
+Waiting for STM32 LOG data...
+```
+
+When a card is scanned, the logger displays the serial data and saves the record:
+
+```text
+[SERIAL] LOG,AD 8D 17 07,Unknown Card,DENIED,1
+[DB] Saved: 2026-05-10 23:30:33, AD 8D 17 07, Unknown Card, DENIED, 1
+```
+
+### 11.3 View Saved Logs
+
+Run:
+
+```bash
+python view_logs.py
+```
+
+Example output:
+
+```text
+ID | Timestamp           | UID         | User         | Result  | Fail Count
+-------------------------------------------------------------------------------------
+3  | 2026-05-10 23:32:59 | 2E EF 30 07 | Admin Card   | GRANTED | 0
+2  | 2026-05-10 23:30:33 | AD 8D 17 07 | Unknown Card | DENIED  | 1
+1  | 2026-05-10 23:30:14 | 2E EF 30 07 | Admin Card   | GRANTED | 0
+```
+
+This confirms that the access records have been successfully stored and retrieved from SQLite.
+
+---
+
+## 🖼️ 12. Demo Images
 
 The following images show the serial output and hardware wiring.
 
@@ -369,7 +488,7 @@ Images/
 
 ---
 
-## ▶️ 12. Demo Behavior
+## ▶️ 13. Demo Behavior
 
 The system works as follows:
 
@@ -380,19 +499,23 @@ The system works as follows:
    - The user name is displayed.
    - The LED turns on.
    - The buzzer beeps once.
+   - A `GRANTED` LOG record is sent to Python.
 3. When an unauthorized card is scanned:
    - The UID is displayed.
    - Access is denied.
    - The failed count increases.
    - The buzzer beeps three times.
+   - A `DENIED` LOG record is sent to Python.
 4. After 3 consecutive unauthorized scans:
    - Alarm is triggered.
+   - An `ALARM` LOG record is sent to Python.
    - The system locks for 5 seconds.
    - The system unlocks automatically.
+5. Python receives the structured LOG records and stores them into SQLite.
 
 ---
 
-## 🚀 13. Project Highlights
+## 🚀 14. Project Highlights
 
 This project demonstrates:
 
@@ -407,26 +530,31 @@ This project demonstrates:
 - Alarm and temporary lockout mechanism
 - Modular firmware design
 - State-machine-based system workflow
+- Structured serial data output
+- Python serial communication using `pyserial`
+- SQLite database storage
+- Local access log viewing
 - Hardware and software debugging ability
 
 ---
 
-## 🔮 14. Future Improvements
+## 🔮 15. Future Improvements
 
 Possible future upgrades:
 
 - Add OLED display for access result
 - Add relay or servo motor to simulate a real door lock
 - Add administrator card for whitelist management
+- Build a Flask web dashboard for access record visualization
+- Add search and filter functions for access logs
+- Add statistics such as daily access count and denied access count
 - Add ESP8266 / ESP32 WiFi module for IoT access logging
-- Upload access logs to a Python backend
-- Store records in SQLite or MySQL
-- Build a web dashboard for access record visualization
+- Upload access logs to a remote backend
 - Support remote whitelist management
 
 ---
 
-## ✅ 15. Summary
+## ✅ 16. Summary
 
 This project implements a complete RFID access control workflow:
 
@@ -438,8 +566,13 @@ Card Detection
 → Serial Logging
 → Failed-Attempt Alarm
 → State Machine Control
+→ Python Serial Logging
+→ SQLite Database Storage
+→ Local Log Viewing
 ```
 
 The final system provides a complete embedded access control demo based on STM32 and MFRC522.
 
-It includes RFID reading, whitelist authentication, LED and buzzer feedback, USART logging, failed-attempt alarm, temporary lockout, modular firmware design, and state-machine-based control logic.
+It includes RFID reading, whitelist authentication, LED and buzzer feedback, USART logging, failed-attempt alarm, temporary lockout, modular firmware design, state-machine-based control logic, Python serial data collection, SQLite database storage, and local access log viewing.
+
+Version **v2.0** upgrades the project from a standalone embedded access control system into an embedded system with local data logging capability.

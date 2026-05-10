@@ -28,6 +28,45 @@ static uint8_t failedCount = 0;
 
 static SystemState currentState = STATE_IDLE;
 
+/* ===================== Serial Structured Log Function ===================== */
+/*
+   This function sends a structured log line through USART.
+
+   Format:
+   LOG,UID,USER,RESULT,FAIL_COUNT
+
+   Example:
+   LOG,2E EF 30 07,Admin Card,GRANTED,0
+   LOG,AD 8D 17 07,Unknown Card,DENIED,1
+   LOG,AD 8D 17 07,Unknown Card,ALARM,3
+
+   This format will be used by the Python logger later.
+*/
+
+void USART1_SendAccessLog(uint8_t *cardUID, char *userName, char *result, uint8_t failCount)
+{
+    USART1_SendString("LOG,");
+
+    USART1_SendHex(cardUID[0]);
+    USART1_SendChar(' ');
+    USART1_SendHex(cardUID[1]);
+    USART1_SendChar(' ');
+    USART1_SendHex(cardUID[2]);
+    USART1_SendChar(' ');
+    USART1_SendHex(cardUID[3]);
+
+    USART1_SendChar(',');
+    USART1_SendString(userName);
+
+    USART1_SendChar(',');
+    USART1_SendString(result);
+
+    USART1_SendChar(',');
+    USART1_SendChar(failCount + '0');
+
+    USART1_SendString("\r\n");
+}
+
 /* ===================== State Handler Functions ===================== */
 
 void State_IDLE(void)
@@ -96,6 +135,8 @@ void State_GRANTED(void)
     USART1_SendString("\r\n");
     USART1_SendString("[FAIL COUNT] 0\r\n\r\n");
 
+    USART1_SendAccessLog(uid, GetCardName(cardIndex), "GRANTED", failedCount);
+
     LED_ON();
     Beep_OK();
 
@@ -115,6 +156,8 @@ void State_DENIED(void)
     USART1_SendChar(failedCount + '0');
     USART1_SendString("\r\n\r\n");
 
+    USART1_SendAccessLog(uid, "Unknown Card", "DENIED", failedCount);
+
     LED_OFF();
     Beep_FAIL();
 
@@ -132,6 +175,8 @@ void State_ALARM(void)
 {
     USART1_SendString("[ALARM] Too many failed attempts!\r\n");
     USART1_SendString("[SYSTEM] Locked for 5 seconds\r\n\r\n");
+
+    USART1_SendAccessLog(uid, "Unknown Card", "ALARM", failedCount);
 
     Beep_Alarm();
 
@@ -172,7 +217,7 @@ void System_Init(void)
     USART1_SendString("================================\r\n");
     USART1_SendString(" RFID Access Control System\r\n");
     USART1_SendString(" System Start\r\n");
-    USART1_SendString(" Version: v1.4 State Machine\r\n");
+    USART1_SendString(" Version: v2.0 Serial Logging\r\n");
     USART1_SendString("================================\r\n\r\n");
 
     currentState = STATE_IDLE;
